@@ -5,6 +5,7 @@ interface CustomIconProps {
     | "shop-bag"
     | "door"
     | "car-icon"
+    | "car-image"
     | "fan"
     | "control"
     | "lock"
