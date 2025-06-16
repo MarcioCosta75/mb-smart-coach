@@ -2,9 +2,14 @@ import type { Metadata } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'MB Smart Coach',
+  description: 'Mercedes-Benz Smart Coach - Your Smart Charging Companion',
+  generator: 'MB Smart Coach',
+  icons: {
+    icon: '/icons/mercedes-star.svg',
+    shortcut: '/icons/mercedes-star.svg',
+    apple: '/icons/mercedes-star.svg',
+  },
 }
 
 export default function RootLayout({
