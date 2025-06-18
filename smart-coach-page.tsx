@@ -6,7 +6,7 @@ import { Menu, MessageCircle, Mic, Send, Zap, MapPin, Clock, Battery, DollarSign
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomIcon } from "@/components/custom-icon"
-import { smartCoachAPI } from "@/lib/smart-coach-api"
+
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -59,20 +59,37 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   }, [messages])
 
   useEffect(() => {
-    // Send welcome message on mount using Smart Coach API
+    // Send welcome message on mount using API route
     const loadWelcomeMessage = async () => {
       try {
-        const apiResponse = await smartCoachAPI.sendMessage("Hello", [])
-        const welcomeMessage: Message = {
-          id: "welcome-1",
-          type: 'bot',
-          content: apiResponse.message,
-          timestamp: new Date(),
-          suggestions: apiResponse.suggestions || ["Optimize my charging", "Find charging stations", "Check energy prices", "Plan a trip"]
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: "Hello",
+            history: []
+          })
+        })
+
+        if (response.ok) {
+          const apiResponse = await response.json()
+          const welcomeMessage: Message = {
+            id: "welcome-1",
+            type: 'bot',
+            content: apiResponse.message,
+            timestamp: new Date(),
+            suggestions: apiResponse.suggestions || ["Optimize my charging", "Find charging stations", "Check energy prices", "Plan a trip"]
+          }
+          setMessages([welcomeMessage])
+          setMessageIdCounter(2)
+        } else {
+          throw new Error('API request failed')
         }
-        setMessages([welcomeMessage])
-        setMessageIdCounter(2)
       } catch (error) {
+        console.error('Error loading welcome message:', error)
+        
         // Fallback welcome message
         const welcomeMessage: Message = {
           id: "welcome-1",
@@ -110,20 +127,42 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
     setIsTyping(true)
 
     try {
-      // Use Smart Coach API (will use AI if configured, otherwise intelligent mock)
-      const apiResponse = await smartCoachAPI.sendMessage(textToSend, [])
-      
-      const botMessage: Message = {
-        id: `bot-${currentId + 1}`,
-        type: 'bot',
-        content: apiResponse.message,
-        timestamp: new Date(),
-        suggestions: apiResponse.suggestions || ["Tell me more", "Show alternatives", "Set reminder"]
+      // Convert messages to chat history format
+      const chatHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant' as const,
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+
+      // Use API route for chat
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: textToSend,
+          history: chatHistory
+        })
+      })
+
+      if (response.ok) {
+        const apiResponse = await response.json()
+        
+        const botMessage: Message = {
+          id: `bot-${currentId + 1}`,
+          type: 'bot',
+          content: apiResponse.message,
+          timestamp: new Date(),
+          suggestions: apiResponse.suggestions || ["Tell me more", "Show alternatives", "Set reminder"]
+        }
+        
+        setMessages(prev => [...prev, botMessage])
+        setMessageIdCounter(currentId + 2)
+        setIsTyping(false)
+      } else {
+        throw new Error(`API request failed: ${response.status}`)
       }
-      
-      setMessages(prev => [...prev, botMessage])
-      setMessageIdCounter(currentId + 2)
-      setIsTyping(false)
     } catch (error) {
       console.error('Error getting AI response:', error)
       

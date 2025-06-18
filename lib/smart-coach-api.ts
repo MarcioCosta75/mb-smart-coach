@@ -71,16 +71,12 @@ const SYSTEM_PROMPT = `You are Mercedes Smart Coach, an intelligent assistant fo
 Always prioritize user safety, battery longevity, and cost optimization.`
 
 class SmartCoachAPI {
-  private apiKey: string | null = null
-  private apiProvider: 'openai' | 'gemini' | null = null
+  private aiConfig: { provider: 'openai'; apiKey: string; enabled: boolean } | null = null
   private context: SmartChargingContext
   
   constructor() {
     // Initialize AI configuration from environment variables
-    const aiConfig = initializeAI()
-    if (aiConfig.enabled && aiConfig.apiKey && aiConfig.provider) {
-      this.configure(aiConfig.provider, aiConfig.apiKey)
-    }
+    this.aiConfig = initializeAI()
 
     // Initialize with mock Mercedes EQS context
     this.context = {
@@ -106,92 +102,58 @@ class SmartCoachAPI {
     }
   }
 
-  // Configure API for future integration
-  configure(provider: 'openai' | 'gemini', apiKey: string) {
-    this.apiProvider = provider
-    this.apiKey = apiKey
-  }
+
 
   // Update vehicle and user context
   updateContext(context: Partial<SmartChargingContext>) {
     this.context = { ...this.context, ...context }
   }
 
-  // Main chat method - ready for AI integration
+  // Main chat method with AI integration
   async sendMessage(message: string, history: ChatMessage[] = []): Promise<ApiResponse> {
-    if (this.apiProvider && this.apiKey) {
-      return this.callAIService(message, history)
+    if (this.aiConfig?.enabled) {
+      console.log('🤖 Using OpenAI API for response')
+      return this.callOpenAI(message, history)
     } else {
+      console.log('📝 Using mock response (AI not configured)')
       // Fallback to intelligent mock responses
       return this.generateMockResponse(message, history)
     }
   }
 
-  // Future AI integration method
-  private async callAIService(message: string, history: ChatMessage[]): Promise<ApiResponse> {
+  // OpenAI integration
+  private async callOpenAI(message: string, history: ChatMessage[]): Promise<ApiResponse> {
     try {
-      if (this.apiProvider === 'openai') {
-        return await this.callOpenAI(message, history)
-      } else if (this.apiProvider === 'gemini') {
-        return await this.callGemini(message, history)
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.aiConfig!.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'system', content: `Current vehicle context: ${JSON.stringify(this.context)}` },
+            ...history,
+            { role: 'user', content: message }
+          ],
+          max_tokens: 500,
+          temperature: 0.7,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`OpenAI API error: ${response.status}`)
       }
-      throw new Error('Unsupported AI provider')
+
+      const data = await response.json()
+      return this.parseAIResponse(data.choices[0].message.content)
     } catch (error) {
-      console.error('AI API Error:', error)
+      console.error('OpenAI API Error:', error)
       // Fallback to mock response
       return this.generateMockResponse(message, history)
     }
-  }
-
-  // OpenAI integration (ready for implementation)
-  private async callOpenAI(message: string, history: ChatMessage[]): Promise<ApiResponse> {
-    // TODO: Implement OpenAI API call
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4',
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'system', content: `Current vehicle context: ${JSON.stringify(this.context)}` },
-          ...history,
-          { role: 'user', content: message }
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
-      }),
-    })
-
-    const data = await response.json()
-    return this.parseAIResponse(data.choices[0].message.content)
-  }
-
-  // Gemini integration (ready for implementation)
-  private async callGemini(message: string, history: ChatMessage[]): Promise<ApiResponse> {
-    // TODO: Implement Gemini API call
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${this.apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: `${SYSTEM_PROMPT}\n\nContext: ${JSON.stringify(this.context)}\n\nUser: ${message}`
-          }]
-        }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 500,
-        }
-      }),
-    })
-
-    const data = await response.json()
-    return this.parseAIResponse(data.candidates[0].content.parts[0].text)
   }
 
   // Parse AI response and extract actions/suggestions
@@ -420,7 +382,7 @@ I'm here to **optimize your EQS charging experience**. Here's how I can help:
   }
 
   isAIConfigured(): boolean {
-    return this.apiProvider !== null && this.apiKey !== null
+    return this.aiConfig !== null && this.aiConfig.enabled
   }
 }
 
