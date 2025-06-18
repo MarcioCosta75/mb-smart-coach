@@ -2,11 +2,11 @@
 
 import type React from "react"
 import { useState, useRef, useEffect } from "react"
-import { Menu, MessageCircle, Mic, Send, Zap, MapPin, Clock, Battery, DollarSign, Sun } from "lucide-react"
+import { Menu, MessageCircle, Mic, MicOff, Send, Zap, MapPin, Clock, Battery, DollarSign, Sun } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomIcon } from "@/components/custom-icon"
-
+import { useVoiceChat } from "@/hooks/use-voice-chat"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -49,6 +49,9 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   const [messageIdCounter, setMessageIdCounter] = useState(1)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
+
+  // Voice chat hook
+  const { voiceState, startRecording, stopRecording, stopAll, clearError } = useVoiceChat()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -106,7 +109,87 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
     loadWelcomeMessage()
   }, [])
 
+  // Handle voice messages
+  const handleVoiceMessage = async (transcript: string): Promise<string> => {
+    // Add user message (voice transcript)
+    const currentId = messageIdCounter
+    const userMessage: Message = {
+      id: `user-voice-${currentId}`,
+      type: 'user',
+      content: transcript,
+      timestamp: new Date()
+    }
 
+    setMessages(prev => [...prev, userMessage])
+    setMessageIdCounter(currentId + 1)
+
+    try {
+      // Convert messages to chat history format
+      const chatHistory = messages.map(msg => ({
+        role: msg.type === 'user' ? 'user' : 'assistant' as const,
+        content: msg.content,
+        timestamp: msg.timestamp
+      }))
+
+      // Get response from chat API
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: transcript,
+          history: chatHistory
+        })
+      })
+
+      if (response.ok) {
+        const apiResponse = await response.json()
+        
+        const botMessage: Message = {
+          id: `bot-voice-${currentId + 1}`,
+          type: 'bot',
+          content: apiResponse.message,
+          timestamp: new Date(),
+          suggestions: apiResponse.suggestions || ["Tell me more", "Show alternatives", "Set reminder"]
+        }
+        
+        setMessages(prev => [...prev, botMessage])
+        setMessageIdCounter(currentId + 2)
+
+        return apiResponse.message
+      } else {
+        throw new Error(`API request failed: ${response.status}`)
+      }
+    } catch (error) {
+      console.error('Error getting voice response:', error)
+      
+      const fallbackMessage: Message = {
+        id: `bot-voice-${currentId + 1}`,
+        type: 'bot',
+        content: "I'm experiencing some technical difficulties. Please try again in a moment.",
+        timestamp: new Date(),
+        suggestions: ["Try again", "Contact support", "Check connection"]
+      }
+      
+      setMessages(prev => [...prev, fallbackMessage])
+      setMessageIdCounter(currentId + 2)
+
+      return fallbackMessage.content
+    }
+  }
+
+  // Handle voice button click
+  const handleVoiceClick = async () => {
+    if (voiceState.isRecording) {
+      // Stop recording and process
+      await stopRecording(handleVoiceMessage)
+    } else {
+      // Start recording
+      clearError()
+      await startRecording()
+    }
+  }
 
   const handleSend = async (messageText?: string) => {
     const textToSend = messageText || message.trim()
@@ -319,6 +402,22 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
               </div>
             )}
 
+            {/* Voice Processing Indicator */}
+            {voiceState.isProcessing && (
+              <div className="flex justify-start">
+                <div className="bg-blue-800 text-white rounded-2xl rounded-tl-md px-4 py-3 border border-blue-600">
+                  <div className="flex items-center space-x-2">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                    </div>
+                    <span className="text-xs text-blue-200">Processing voice message...</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div ref={messagesEndRef} />
           </div>
         </div>
@@ -352,13 +451,60 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
             {/* Top row: Icons */}
             <div className="flex items-center gap-3">
               <MessageCircle className="w-6 h-6 text-gray-400 hover:text-gray-600 cursor-pointer transition-colors" />
-              <Mic className="w-6 h-6 text-gray-400 hover:text-gray-600 cursor-pointer transition-colors" />
+              
+              {/* Voice button with different states */}
+              <div className="relative">
+                <button
+                  onClick={handleVoiceClick}
+                  disabled={voiceState.isProcessing || isTyping}
+                  className={`w-6 h-6 transition-all duration-200 ${
+                    voiceState.isRecording
+                      ? 'text-red-500 animate-pulse'
+                      : voiceState.isProcessing
+                      ? 'text-blue-500 animate-spin'
+                      : voiceState.isPlaying
+                      ? 'text-green-500'
+                      : 'text-gray-400 hover:text-gray-600'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {voiceState.isRecording ? (
+                    <MicOff className="w-6 h-6" />
+                  ) : (
+                    <Mic className="w-6 h-6" />
+                  )}
+                </button>
+                
+                {/* Voice status indicator */}
+                {(voiceState.isRecording || voiceState.isProcessing || voiceState.isPlaying) && (
+                  <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+                    <span className="text-xs text-gray-500 bg-white px-2 py-1 rounded shadow">
+                      {voiceState.isRecording && '🔴 Recording...'}
+                      {voiceState.isProcessing && '🔄 Processing...'}
+                      {voiceState.isPlaying && '🔊 Playing...'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
               <div className="flex-1 flex justify-end">
                 <span className="text-xs text-gray-400">
                   {messages.filter(m => m.type === 'user').length} messages sent
                 </span>
               </div>
             </div>
+
+            {/* Voice error display */}
+            {voiceState.error && (
+              <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-2">
+                <span className="text-red-600 text-xs">{voiceState.error}</span>
+                <button
+                  onClick={clearError}
+                  className="text-red-500 hover:text-red-700 text-xs font-medium"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             {/* Bottom row: Text input and send button */}
             <div className="flex items-center gap-3">

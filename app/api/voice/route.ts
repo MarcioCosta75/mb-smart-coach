@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function POST(request: NextRequest) {
   try {
-    const { audioData, action } = await request.json()
+    const body = await request.json()
+    const { audioData, action, text } = body
     const apiKey = process.env.OPENAI_API_KEY
 
     if (!apiKey) {
@@ -46,7 +47,12 @@ export async function POST(request: NextRequest) {
 
     if (action === 'speak') {
       // Use TTS API for text-to-speech
-      const { text } = await request.json()
+      if (!text) {
+        return NextResponse.json(
+          { error: 'Text is required for TTS' },
+          { status: 400 }
+        )
+      }
       
       const ttsResponse = await fetch(
         'https://api.openai.com/v1/audio/speech',
