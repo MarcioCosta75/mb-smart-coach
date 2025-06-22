@@ -238,6 +238,7 @@ export function useVoiceChat() {
     voiceState,
     startRecording,
     stopRecording,
+    playAudio,
     stopAll,
     clearError
   }

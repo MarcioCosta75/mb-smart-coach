@@ -51,7 +51,7 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   const chatAreaRef = useRef<HTMLDivElement>(null)
 
   // Voice chat hook
-  const { voiceState, startRecording, stopRecording, stopAll, clearError } = useVoiceChat()
+  const { voiceState, startRecording, stopRecording, stopAll, clearError, playAudio } = useVoiceChat()
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -60,6 +60,32 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Function to convert text to speech
+  const convertTextToSpeech = async (text: string) => {
+    try {
+      console.log('🗣️ Converting welcome message to speech...')
+      const ttsResponse = await fetch('/api/voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'speak',
+          text: text
+        })
+      })
+
+      if (ttsResponse.ok) {
+        const { audioData } = await ttsResponse.json()
+        
+        // Play the audio using the voice chat hook to show proper state
+        await playAudio(audioData)
+      }
+    } catch (error) {
+      console.error('Error converting welcome message to speech:', error)
+    }
+  }
 
   useEffect(() => {
     // Send welcome message on mount using API route
@@ -87,6 +113,9 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
           }
           setMessages([welcomeMessage])
           setMessageIdCounter(2)
+          
+          // Convert welcome message to speech
+          await convertTextToSpeech(apiResponse.message)
         } else {
           throw new Error('API request failed')
         }
@@ -103,6 +132,9 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
         }
         setMessages([welcomeMessage])
         setMessageIdCounter(2)
+        
+        // Convert fallback message to speech
+        await convertTextToSpeech(welcomeMessage.content)
       }
     }
     
