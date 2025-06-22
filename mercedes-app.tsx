@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Menu, RefreshCw } from "lucide-react"
 import { SmartCoachPage } from "./smart-coach-page"
 import { CustomIcon } from "./components/custom-icon"
-import { CurrentTaskCard } from "./components/current-task-card"
+import { TaskCarousel } from "./components/task-carousel"
 import { SmartCoachButton } from "./components/smart-coach-button"
 import { BatteryStatus } from "./components/battery-status"
 import { RemoteControls } from "./components/remote-controls"
@@ -13,6 +13,29 @@ import { VehicleStatus } from "./components/vehicle-status"
 export default function Component() {
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [vehicleUnlocked, setVehicleUnlocked] = useState(true)
+
+  const tasks = [
+    {
+      id: "charging",
+      type: "charging" as const,
+      status: "Charging",
+      duration: "2hr",
+      progress: 35
+    },
+    {
+      id: "notification",
+      type: "notification" as const,
+      status: "Notification",
+      message: "It is sunny today, you should charge your car for less. It's a good deal!"
+    },
+    {
+      id: "parking",
+      type: "parking" as const,
+      status: "Parked",
+      duration: "1hr",
+      progress: 85
+    }
+  ]
 
   const controls = [
     { icon: "lock", label: "Unlocked", active: true },
@@ -95,13 +118,8 @@ export default function Component() {
 
         {/* Content Section */}
         <div className="px-4 sm:px-6 -mt-4 relative z-20 pb-8">
-          {/* Current Task Card */}
-          <CurrentTaskCard
-            taskType="charging"
-            status="Charging"
-            duration="2hr"
-            progress={65}
-          />
+          {/* Task Carousel */}
+          <TaskCarousel tasks={tasks} />
 
           {/* Vehicle Status and Smart Coach Button */}
           <div className="flex items-start gap-3 mb-4">

@@ -32,7 +32,7 @@ export function CurrentTaskCard({
   }
 
   return (
-    <Card className="p-4 mb-4 bg-white rounded-xl shadow-md border border-gray-100">
+    <Card className="p-4 mb-4 bg-white rounded-xl shadow-md border border-gray-100 min-h-[120px]">
       <div className="text-xs text-gray-500 uppercase tracking-wide mb-3 font-medium">
         Current Task - Schedule
       </div>
@@ -48,9 +48,9 @@ export function CurrentTaskCard({
         </div>
         
         {duration && (
-          <div className="text-right">
-            <div className="text-xs text-gray-500 font-medium">Duration</div>
-            <div className="text-lg font-semibold text-gray-900">{duration}</div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 font-medium">Duration</span>
+            <span className="text-lg font-semibold text-gray-900">{duration}</span>
           </div>
         )}
       </div>

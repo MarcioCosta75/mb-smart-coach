@@ -17,6 +17,7 @@ interface CustomIconProps {
     | "nav"
     | "white-lock"
     | "messages"
+    | "sun"
   className?: string
   width?: number
   height?: number
