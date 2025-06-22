@@ -56,9 +56,9 @@ export default function Component() {
   return (
     <div className="min-h-screen bg-gray-100 overflow-x-hidden">
       {/* Header */}
-      <div className="bg-black text-white px-4 py-3 flex items-center justify-between">
+      <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
         <Menu className="w-6 h-6 cursor-pointer hover:opacity-80 hover:scale-110 active:scale-95 transition-all duration-200" />
-        <h1 className="text-base sm:text-lg font-medium">Mercedes-Benz</h1>
+        <h1 className="text-lg sm:text-xl font-medium">Mercedes-Benz</h1>
         <div
           className="relative cursor-pointer hover:opacity-80 hover:scale-110 active:scale-95 transition-all duration-200"
           onClick={() => setCurrentPage("smart-coach")}
@@ -105,13 +105,6 @@ export default function Component() {
               <div className="relative w-full max-w-xs sm:max-w-sm mx-auto">
                 <CustomIcon name="car-image" width={339} height={149} className="w-full h-auto max-w-[339px] mx-auto" />
               </div>
-            </div>
-
-            {/* Carousel Dots */}
-            <div className="flex justify-center gap-2 mb-4">
-              <div className="w-2 h-2 bg-blue-400 rounded-full cursor-pointer hover:scale-125 transition-transform duration-200"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full cursor-pointer hover:scale-125 hover:bg-blue-300 transition-all duration-200"></div>
-              <div className="w-2 h-2 bg-gray-400 rounded-full cursor-pointer hover:scale-125 hover:bg-blue-300 transition-all duration-200"></div>
             </div>
           </div>
         </div>

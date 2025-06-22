@@ -63,10 +63,10 @@ export function RemoteControls({ controls, onControlClick }: RemoteControlsProps
           return (
             <button
               key={index}
-              className={`p-3 sm:p-4 rounded-lg text-center transition-all duration-300 transform hover:scale-105 active:scale-95 ${
+              className={`p-3 sm:p-4 rounded-2xl text-center transition-all duration-300 transform hover:scale-105 active:scale-95 ${
                 control.active
                   ? "bg-blue-50 border border-blue-200" 
-                  : "bg-gray-100 hover:bg-gray-200"
+                  : "bg-gray-50 hover:bg-gray-100"
               } ${
                 loadingControl === index ? "animate-pulse bg-blue-200" : ""
               }`}
