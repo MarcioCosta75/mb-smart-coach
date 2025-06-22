@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomIcon } from "@/components/custom-icon"
 import { useVoiceChat } from "@/hooks/use-voice-chat"
+import { useIsMobile } from "@/hooks/use-mobile"
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -47,10 +48,11 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   const [isTyping, setIsTyping] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(true)
   const [messageIdCounter, setMessageIdCounter] = useState(1)
+  const [showScrollToBottom, setShowScrollToBottom] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const chatAreaRef = useRef<HTMLDivElement>(null)
 
-  // Voice chat hook
+  // Hooks
   const { voiceState, startRecording, stopRecording, stopAll, clearError, playAudio } = useVoiceChat()
 
   const scrollToBottom = () => {
@@ -58,8 +60,28 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
   }
 
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length === 1) {
+      // For the first message (welcome), scroll to top to ensure it's visible
+      if (chatAreaRef.current) {
+        chatAreaRef.current.scrollTop = 0
+      }
+      setShowScrollToBottom(false)
+    } else {
+      // For subsequent messages, scroll to bottom as usual
+      scrollToBottom()
+      // Show scroll to bottom button if there are many messages
+      setShowScrollToBottom(messages.length > 3)
+    }
   }, [messages])
+
+  // Handle scroll events to show/hide scroll to bottom button
+  const handleScroll = () => {
+    if (chatAreaRef.current && messages.length > 3) {
+      const { scrollTop, scrollHeight, clientHeight } = chatAreaRef.current
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100
+      setShowScrollToBottom(!isNearBottom)
+    }
+  }
 
   // Function to convert text to speech
   const convertTextToSpeech = async (text: string) => {
@@ -353,13 +375,16 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
         {/* Messages */}
         <div 
           ref={chatAreaRef}
-          className="relative z-10 h-full overflow-y-auto px-3 sm:px-4 pt-6 sm:pt-4 pb-6"
+          className="relative z-10 h-full overflow-y-auto px-3 sm:px-4 pb-6 pt-20 sm:pt-24 md:pt-28 custom-scrollbar"
+          onScroll={handleScroll}
         >
           <div className="space-y-4">
-            {messages.map((msg, index) => (
+                        {messages.map((msg, index) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} ${index === 0 ? 'mt-6 sm:mt-4' : ''}`}
+                className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} ${
+                  index === 0 ? 'animate-fade-in' : ''
+                }`}
               >
                 <div
                   className={`max-w-[85%] sm:max-w-[80%] md:max-w-[70%] rounded-2xl px-3 sm:px-4 py-3 ${
@@ -453,6 +478,28 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
             <div ref={messagesEndRef} />
           </div>
         </div>
+
+        {/* Scroll to bottom button */}
+        {showScrollToBottom && (
+          <button
+            onClick={scrollToBottom}
+            className="absolute bottom-24 right-4 w-10 h-10 bg-gray-800 hover:bg-gray-700 text-white rounded-full shadow-lg transition-all duration-200 flex items-center justify-center z-30"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 14l-7 7m0 0l-7-7m7 7V3"
+              />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Quick Suggestions */}
@@ -460,15 +507,15 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
         <div className="px-4 pb-2">
           <div className="bg-gray-800/50 backdrop-blur rounded-xl p-3 border border-gray-600">
             <p className="text-white text-sm mb-3 font-medium">Quick Actions:</p>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {quickSuggestions.slice(0, 4).map((suggestion, index) => (
                 <button
                   key={index}
                   onClick={() => handleSuggestionClick(suggestion.text)}
-                  className="flex items-center gap-2 p-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors duration-200"
+                  className="flex items-center gap-2 p-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors duration-200 active:bg-gray-500"
                 >
-                  <suggestion.icon className="w-4 h-4" />
-                  <span className="truncate">{suggestion.text}</span>
+                  <suggestion.icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate text-left">{suggestion.text}</span>
                 </button>
               ))}
             </div>
@@ -520,7 +567,7 @@ export function SmartCoachPage({ onBack }: SmartCoachPageProps) {
 
               <div className="flex-1 flex justify-end">
                 <span className="text-xs text-gray-400">
-                  {messages.filter(m => m.type === 'user').length} messages sent
+                  {messages.length > 1 ? `${messages.length - 1} messages` : 'Start conversation'}
                 </span>
               </div>
             </div>
