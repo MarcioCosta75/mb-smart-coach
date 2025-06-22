@@ -2,6 +2,7 @@
 // Ready for OpenAI or Gemini integration
 
 import { initializeAI } from './ai-config'
+import { weatherAPI, WeatherData } from './weather-api'
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system'
@@ -29,6 +30,7 @@ export interface SmartChargingContext {
     costOptimization: boolean
     timePreference: 'flexible' | 'urgent'
   }
+  weather?: WeatherData
 }
 
 export interface ApiResponse {
@@ -63,19 +65,24 @@ Effortless Ella – 29, self-employed architect based in Stuttgart, Germany. She
 - Mercedes wallbox & rooftop solar integration
 - Battery longevity and health monitoring
 - Real-time energy pricing in Stuttgart (EUR)
+- Weather-based solar charging optimization
+- Real-time meteorological data integration
 
 **Behavioral Logic:**
 - Preemptive morning check at 07:00 for unplugged vehicle
 - Calendar sync and detection of last-minute meetings
-- Charging suggestions using solar before leaving
+- Weather-optimized solar charging suggestions
+- Real-time solar irradiation and cloud cover analysis
 - Alerts about risk of not reaching destination
 - Contextual fallback: suggest public chargers nearby if too late
+- Temperature-based battery preconditioning recommendations
 
 **Response Style:**
 - Friendly but efficient
 - Give clear next steps
-- Include key data (charging %, solar window, cost €/kWh)
+- Include key data (charging %, solar window, cost €/kWh, weather conditions)
 - Use Mercedes tone: elegant, tech-smart, helpful
+- Integrate weather context naturally into recommendations
 
 **Always prioritize:**
 - User confidence & peace of mind
@@ -114,6 +121,28 @@ class SmartCoachAPI {
         timePreference: 'flexible'
       }
     }
+    
+    // Initialize weather data
+    this.updateWeatherData()
+  }
+
+  // Update weather data for current location
+  private async updateWeatherData() {
+    if (this.context.location) {
+      try {
+        const weatherData = await weatherAPI.getWeatherData(
+          this.context.location.lat,
+          this.context.location.lng,
+          this.context.location.address || ''
+        )
+        if (weatherData) {
+          this.context.weather = weatherData
+          console.log('🌦️ Weather data updated successfully')
+        }
+      } catch (error) {
+        console.error('Failed to update weather data:', error)
+      }
+    }
   }
 
 
@@ -121,6 +150,35 @@ class SmartCoachAPI {
   // Update vehicle and user context
   updateContext(context: Partial<SmartChargingContext>) {
     this.context = { ...this.context, ...context }
+    
+    // Update weather data if location changed
+    if (context.location) {
+      this.updateWeatherData()
+    }
+  }
+
+  // Get weather context for AI prompt
+  private getWeatherContext(): string {
+    if (!this.context.weather) {
+      return 'Weather data: Loading weather information for location...'
+    }
+
+    const { current, solarOptimization } = this.context.weather
+    const bestWindow = solarOptimization.bestChargingWindow
+    const windowText = bestWindow 
+      ? `${new Date(bestWindow.start).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} - ${new Date(bestWindow.end).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`
+      : 'No optimal solar window found'
+
+    return `Current weather context:
+- Temperature: ${current.temperature}°C
+- Cloud cover: ${current.cloud_cover}%
+- Solar irradiation: ${current.solar ? Math.round(current.solar * 1000) + 'W/m²' : 'No data'}
+- Condition: ${current.condition || 'Clear'}
+- Solar potential today: ${solarOptimization.todaySolarPotential}
+- Best solar charging window: ${windowText}
+- Recommended times: ${solarOptimization.recommendedChargingTimes.join(', ') || 'None available'}
+
+Use this weather information to provide relevant charging advice, especially for solar optimization and battery care in different temperatures.`
   }
 
   // Main chat method with AI integration
@@ -149,6 +207,7 @@ class SmartCoachAPI {
           messages: [
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'system', content: `Current vehicle context: ${JSON.stringify(this.context)}` },
+            { role: 'system', content: this.getWeatherContext() },
             ...history,
             { role: 'user', content: message }
           ],
@@ -222,6 +281,10 @@ class SmartCoachAPI {
         response = this.getGreenResponse()
         suggestions = ['Schedule solar charging', 'Find renewable stations', 'Carbon tracking']
       }
+      else if (lowerMessage.includes('weather') || lowerMessage.includes('tempo') || lowerMessage.includes('clima') || lowerMessage.includes('sun') || lowerMessage.includes('rain')) {
+        response = this.getWeatherResponse(lowerMessage)
+        suggestions = ['Solar charging advice', 'Weather forecast', 'Optimal charging time']
+      }
       else {
         response = this.getGeneralResponse(lowerMessage)
         suggestions = ['Optimize charging', 'Find stations', 'Plan trip']
@@ -235,6 +298,32 @@ class SmartCoachAPI {
   }
 
   private getChargingResponse(message: string): string {
+    // Enhanced responses with weather integration
+    if (this.context.weather) {
+      const weatherAdvice = weatherAPI.getSolarChargingAdvice(this.context.weather, this.context.batteryLevel)
+      const canUseSolarNow = weatherAPI.isGoodForSolarCharging(this.context.weather)
+      
+      if (message.includes('solar') || message.includes('green')) {
+        return weatherAdvice
+      }
+      
+      if (canUseSolarNow) {
+        return `🌞 **Perfect solar conditions right now!** Current temperature: ${this.context.weather.current.temperature}°C, cloud cover: ${this.context.weather.current.cloud_cover}%.\n\n${weatherAdvice}`
+      }
+      
+      // Weather-enhanced charging advice
+      const temp = this.context.weather.current.temperature
+      let tempAdvice = ''
+      if (temp !== null && temp < 5) {
+        tempAdvice = `\n\n❄️ **Cold weather alert** (${temp}°C): Pre-condition your battery 30 minutes before charging for optimal performance.`
+      } else if (temp !== null && temp > 30) {
+        tempAdvice = `\n\n🌡️ **Hot weather** (${temp}°C): Consider charging during cooler evening hours to protect battery health.`
+      }
+      
+      return `Based on current conditions (${this.context.weather.current.temperature}°C, ${this.context.weather.current.cloud_cover}% clouds) and energy prices (€${this.context.energyPrices?.current}/kWh peak, €${this.context.energyPrices?.offPeak}/kWh off-peak), I recommend:\n\n${this.context.weather.solarOptimization.todaySolarPotential === 'high' ? '☀️ Solar charging during peak sun hours' : '🌙 Off-peak grid charging (23:00-07:00)'} for maximum savings.${tempAdvice}`
+    }
+    
+    // Fallback responses without weather data
     const responses = [
       `Based on current energy prices (€${this.context.energyPrices?.current}/kWh peak, €${this.context.energyPrices?.offPeak}/kWh off-peak), I recommend charging tonight from 23:00-05:00. This will save you €8.40 compared to peak charging.`,
       `Your EQS is at ${this.context.batteryLevel}% charge. For optimal battery health, charge to 80% using AC charging. This provides ${Math.round(this.context.range * 1.08)} km range - perfect for 3-4 days of typical driving.`,
@@ -316,6 +405,42 @@ Total journey time: 4h 35min including breaks.`
   }
 
   private getGreenResponse(): string {
+    if (this.context.weather) {
+      const weatherAdvice = weatherAPI.getSolarChargingAdvice(this.context.weather, this.context.batteryLevel)
+      const solarPotential = this.context.weather.solarOptimization.todaySolarPotential
+      const bestWindow = this.context.weather.solarOptimization.bestChargingWindow
+      
+      let potentialText = ''
+      switch (solarPotential) {
+        case 'high':
+          potentialText = '🌞 **Excellent** (Clear skies, optimal solar irradiation)'
+          break
+        case 'medium':
+          potentialText = '🌤️ **Good** (Partly cloudy, moderate solar potential)'
+          break
+        case 'low':
+          potentialText = '☁️ **Limited** (Overcast conditions)'
+          break
+      }
+
+      const windowText = bestWindow 
+        ? `${new Date(bestWindow.start).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} - ${new Date(bestWindow.end).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`
+        : 'Off-peak grid charging recommended'
+
+      return `Green Energy Integration for your EQS:
+
+🌱 **Solar Potential Today:** ${potentialText}
+☀️ **Optimal Window:** ${windowText}
+🌡️ **Current Conditions:** ${this.context.weather.current.temperature}°C, ${this.context.weather.current.cloud_cover}% cloud cover
+🔌 **Green Charging Stations:** 12 within 25km
+
+**Weather-Optimized Schedule:**
+${weatherAdvice}
+
+Charging with renewable energy reduces your carbon footprint by 85%!`
+    }
+
+    // Fallback without weather data
     return `Green Energy Integration for your EQS:
 
 🌱 **Today's Renewable Mix:** 67% (High solar production)
@@ -327,6 +452,50 @@ Total journey time: 4h 35min including breaks.`
 • Alternative: Renewable public stations map available
 
 Charging with renewable energy reduces your carbon footprint by 85%!`
+  }
+
+  private getWeatherResponse(message: string): string {
+    if (this.context.weather) {
+      const { current, solarOptimization } = this.context.weather
+      const temp = current.temperature
+      const condition = current.condition
+      const cloudCover = current.cloud_cover
+      const solar = current.solar
+
+      let conditionEmoji = '🌤️'
+      switch (condition) {
+        case 'rain': conditionEmoji = '🌧️'; break
+        case 'snow': conditionEmoji = '❄️'; break
+        case 'fog': conditionEmoji = '🌫️'; break
+        case 'thunderstorm': conditionEmoji = '⛈️'; break
+        case 'dry': conditionEmoji = cloudCover && cloudCover < 30 ? '☀️' : '🌤️'; break
+      }
+
+      const weatherAdvice = weatherAPI.getSolarChargingAdvice(this.context.weather, this.context.batteryLevel)
+      
+      return `${conditionEmoji} **Current Weather Conditions in ${this.context.location?.address}:**
+
+🌡️ **Temperature:** ${temp}°C
+☁️ **Cloud Cover:** ${cloudCover}%
+${solar ? `☀️ **Solar Irradiation:** ${Math.round(solar * 1000)}W/m²` : ''}
+🌈 **Condition:** ${condition || 'Clear'}
+
+**Impact on EV Charging:**
+${weatherAdvice}
+
+${current.precipitation && current.precipitation > 0 ? '\n🌧️ **Precipitation Alert:** Consider covered charging locations.' : ''}
+${temp && temp < 0 ? '\n❄️ **Freezing Alert:** Battery preconditioning recommended before charging.' : ''}`
+    }
+
+    // Fallback without weather data
+    return `🌦️ **Weather Integration Active**
+
+I'm currently updating weather data for your location to provide:
+• ☀️ Solar charging optimization
+• 🌡️ Temperature-based battery care
+• 🌧️ Weather-aware charging recommendations
+
+Try asking about solar energy or green charging once weather data loads!`
   }
 
   private getGeneralResponse(message: string): string {
@@ -370,6 +539,10 @@ I'm here to **optimize your EQS charging experience**. Here's how I can help:
       return ['Schedule charging', 'Set price alert', 'View history']
     } else if (content.includes('battery')) {
       return ['View full report', 'Set charge limit', 'Health tips']
+    } else if (content.includes('solar') || content.includes('weather') || content.includes('sun')) {
+      return ['Solar charging schedule', 'Weather forecast', 'Green energy tips']
+    } else if (content.includes('temperature') || content.includes('cold') || content.includes('hot')) {
+      return ['Battery conditioning', 'Optimal charging', 'Weather advice']
     }
     
     return defaultSuggestions
