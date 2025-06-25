@@ -10,19 +10,22 @@ import { suppressDevWarnings } from "@/lib/dev-utils"
 import type { ScheduleItem, NotificationItem } from "@/components/smart-coach-drawer"
 import type { Message } from "@/components/chat-message"
 import { useVoiceChat } from "@/hooks/use-voice-chat"
+import { usePersistentChat } from "@/hooks/use-persistent-chat"
+import { ConfirmationModal } from "@/components/confirmation-modal"
 
 export default function SmartCoachPage() {
   const router = useRouter()
   const [message, setMessage] = useState("")
-  const [messages, setMessages] = useState<Message[]>([])
   const [isDrawerExpanded, setIsDrawerExpanded] = useState(false)
   const [isTyping, setIsTyping] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const chatContainerRef = useRef<HTMLDivElement | null>(null)
   const [isNearBottom, setIsNearBottom] = useState(true)
+  const [showClearModal, setShowClearModal] = useState(false)
 
   // Hooks
   const { voiceState, startRecording, stopRecording, stopAll, clearError } = useVoiceChat()
+  const { messages, isLoaded, addMessage, clearMessages, getChatHistory } = usePersistentChat()
 
   // Suprimir avisos de desenvolvimento
   useEffect(() => {
@@ -35,6 +38,13 @@ export default function SmartCoachPage() {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isTyping, isNearBottom])
+
+  // Mostrar notificação quando mensagens são carregadas
+  useEffect(() => {
+    if (isLoaded && messages.length > 0) {
+      console.log('✅ Conversation restored with', messages.length, 'messages')
+    }
+  }, [isLoaded, messages.length])
 
   // Detectar se o usuário está próximo do final do scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -88,7 +98,7 @@ export default function SmartCoachPage() {
           content: transcript,
           timestamp: new Date()
         }
-        setMessages(prev => [...prev, userMessage])
+        addMessage(userMessage)
         
         try {
           // Call the real Chat API with the transcript
@@ -100,11 +110,7 @@ export default function SmartCoachPage() {
             },
             body: JSON.stringify({
               message: transcript,
-              history: messages.map(msg => ({
-                role: msg.type === 'user' ? 'user' : 'assistant',
-                content: msg.content,
-                timestamp: msg.timestamp
-              }))
+              history: getChatHistory()
             })
           })
 
@@ -122,7 +128,7 @@ export default function SmartCoachPage() {
             timestamp: new Date()
           }
 
-          setMessages(prev => [...prev, botMessage])
+          addMessage(botMessage)
           
           // Return the response text for TTS
           return data.message || "I'm here to help with your Mercedes Smart Coach needs!"
@@ -137,7 +143,7 @@ export default function SmartCoachPage() {
             content: errorResponse,
             timestamp: new Date()
           }
-          setMessages(prev => [...prev, errorMessage])
+          addMessage(errorMessage)
           
           return errorResponse
         }
@@ -158,7 +164,7 @@ export default function SmartCoachPage() {
       timestamp: new Date()
     }
 
-    setMessages(prev => [...prev, userMessage])
+    addMessage(userMessage)
     setMessage("")
     setIsTyping(true)
 
@@ -172,11 +178,7 @@ export default function SmartCoachPage() {
         },
         body: JSON.stringify({
           message: userMessage.content,
-          history: messages.map(msg => ({
-            role: msg.type === 'user' ? 'user' : 'assistant',
-            content: msg.content,
-            timestamp: msg.timestamp
-          }))
+          history: getChatHistory()
         })
       })
 
@@ -194,7 +196,7 @@ export default function SmartCoachPage() {
         timestamp: new Date()
       }
 
-      setMessages(prev => [...prev, botMessage])
+      addMessage(botMessage)
     } catch (error) {
       console.error('❌ Chat API Error:', error)
       
@@ -205,7 +207,7 @@ export default function SmartCoachPage() {
         content: "I'm experiencing some technical difficulties. Please try again in a moment.",
         timestamp: new Date()
       }
-      setMessages(prev => [...prev, errorMessage])
+      addMessage(errorMessage)
     } finally {
       setIsTyping(false)
     }
@@ -230,9 +232,18 @@ export default function SmartCoachPage() {
     router.push("/")
   }
 
+  const handleClearChat = () => {
+    setShowClearModal(true)
+  }
+
+  const handleConfirmClear = () => {
+    clearMessages()
+    setShowClearModal(false)
+  }
+
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-slate-700 to-slate-900 z-50 flex flex-col overflow-hidden">
-      <SmartCoachHeader onBack={handleBack} />
+      <SmartCoachHeader onBack={handleBack} onClearChat={handleClearChat} />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -246,13 +257,22 @@ export default function SmartCoachPage() {
 
         {/* Chat Messages Area - Always Present */}
         <div className="flex-1 relative min-h-0">
-          <ChatArea
-            messages={messages}
-            isTyping={isTyping}
-            formatTime={formatTime}
-            messagesEndRef={messagesEndRef}
-            onScroll={handleScroll}
-          />
+          {!isLoaded ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-white/60">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white/60 mx-auto mb-2"></div>
+                <p className="text-sm">Loading conversation...</p>
+              </div>
+            </div>
+          ) : (
+            <ChatArea
+              messages={messages}
+              isTyping={isTyping}
+              formatTime={formatTime}
+              messagesEndRef={messagesEndRef}
+              onScroll={handleScroll}
+            />
+          )}
         </div>
       </div>
 
@@ -268,6 +288,18 @@ export default function SmartCoachPage() {
           onVoiceClick={handleVoiceClick}
         />
       </div>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showClearModal}
+        onClose={() => setShowClearModal(false)}
+        onConfirm={handleConfirmClear}
+        title="Clear Conversation"
+        message="Are you sure you want to clear the entire conversation history? This action cannot be undone."
+        confirmText="Clear"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   )
 } 

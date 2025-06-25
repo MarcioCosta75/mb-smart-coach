@@ -1,14 +1,15 @@
 "use client"
 
 import type React from "react"
-import { Menu } from "lucide-react"
+import { Menu, Trash2 } from "lucide-react"
 import { CustomIcon } from "@/components/custom-icon"
 
 interface SmartCoachHeaderProps {
   onBack: () => void
+  onClearChat?: () => void
 }
 
-export function SmartCoachHeader({ onBack }: SmartCoachHeaderProps) {
+export function SmartCoachHeader({ onBack, onClearChat }: SmartCoachHeaderProps) {
   return (
     <div className="bg-black text-white px-6 py-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -30,7 +31,18 @@ export function SmartCoachHeader({ onBack }: SmartCoachHeaderProps) {
         </div>
       </div>
       
-      <div className="w-6"></div>
+      <div className="flex items-center">
+        {onClearChat && (
+          <button 
+            className="text-white/70 hover:text-white hover:scale-110 active:scale-95 transition-all duration-200 p-1"
+            onClick={onClearChat}
+            title="Clear chat"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        )}
+        <div className="w-6"></div>
+      </div>
     </div>
   )
 } 
