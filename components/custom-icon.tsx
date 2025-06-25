@@ -1,4 +1,5 @@
 import Image from "next/image"
+import { getImageProps } from "@/lib/dev-utils"
 
 interface CustomIconProps {
   name:
@@ -24,5 +25,16 @@ interface CustomIconProps {
 }
 
 export function CustomIcon({ name, className = "", width = 24, height = 24 }: CustomIconProps) {
-  return <Image src={`/icons/${name}.svg`} alt={name} width={width} height={height} className={className} />
+  const imageProps = getImageProps(name)
+  
+  return (
+    <Image 
+      src={`/icons/${name}.svg`} 
+      alt={name} 
+      width={width} 
+      height={height} 
+      className={className}
+      {...imageProps}
+    />
+  )
 }

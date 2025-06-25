@@ -99,6 +99,11 @@ class SmartCoachAPI {
     // Initialize AI configuration from environment variables
     this.aiConfig = initializeAI()
 
+    // Debug log to check API configuration
+    console.log('🔧 Smart Coach API initialized')
+    console.log('🤖 AI Config enabled:', this.aiConfig?.enabled || false)
+    console.log('🔑 API Key available:', this.aiConfig?.apiKey ? 'Yes (length: ' + this.aiConfig.apiKey.length + ')' : 'No')
+
     // Initialize with mock Mercedes EQS context
     this.context = {
       vehicleModel: 'EQS 450+',
