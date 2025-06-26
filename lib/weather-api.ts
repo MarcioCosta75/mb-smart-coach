@@ -192,7 +192,8 @@ class WeatherAPI {
       .slice(0, 6)
       .map(hour => new Date(hour.timestamp).toLocaleTimeString('pt-PT', { 
         hour: '2-digit', 
-        minute: '2-digit' 
+        minute: '2-digit',
+        hour12: false 
       }))
 
     return {
@@ -215,11 +216,13 @@ class WeatherAPI {
     
     const startTime = windowStart.toLocaleTimeString('pt-PT', { 
       hour: '2-digit', 
-      minute: '2-digit' 
+      minute: '2-digit',
+      hour12: false 
     })
     const endTime = windowEnd.toLocaleTimeString('pt-PT', { 
       hour: '2-digit', 
-      minute: '2-digit' 
+      minute: '2-digit',
+      hour12: false 
     })
 
     let advice = `☀️ **Optimal Solar Charging Window**: ${startTime} - ${endTime}\n\n`

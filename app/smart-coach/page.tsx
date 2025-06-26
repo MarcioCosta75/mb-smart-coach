@@ -283,7 +283,7 @@ What can I help you with today?`,
   }
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { 
+    return date.toLocaleTimeString('pt-PT', { 
       hour: '2-digit', 
       minute: '2-digit',
       hour12: false 

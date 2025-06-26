@@ -31,6 +31,35 @@ export interface SmartChargingContext {
   weather?: WeatherData
 }
 
+// Helper function to get current Stuttgart time
+function getStuttgartDateTime(): { date: string; time: string; dayOfWeek: string; timezone: string } {
+  const now = new Date()
+  
+  // Stuttgart timezone (CET/CEST - UTC+1/UTC+2)
+  const stuttgartTime = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Berlin" }))
+  
+  const date = stuttgartTime.toLocaleDateString('pt-PT', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  })
+  
+  const time = stuttgartTime.toLocaleTimeString('pt-PT', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  })
+  
+  const dayOfWeek = stuttgartTime.toLocaleDateString('pt-PT', {
+    weekday: 'long'
+  })
+  
+  // Determine if we're in CET (winter) or CEST (summer)
+  const timezone = stuttgartTime.getTimezoneOffset() === -60 ? 'CET (UTC+1)' : 'CEST (UTC+2)'
+  
+  return { date, time, dayOfWeek, timezone }
+}
+
 // System prompt for Mercedes Smart Charging Coach
 const SYSTEM_PROMPT = `You are Mercedes Smart Coach, a proactive assistant designed to support EQS SUV drivers with smart charging in real-world situations.
 
@@ -72,6 +101,7 @@ Effortless Ella – 29, self-employed architect based in Stuttgart, Germany. She
 - Include key data (charging %, solar window, cost €/kWh, weather conditions)
 - Use Mercedes tone: elegant, tech-smart, helpful
 - Integrate weather context naturally into recommendations
+- Always be aware of the current time when making recommendations
 
 **Always prioritize:**
 - User confidence & peace of mind
@@ -106,6 +136,9 @@ export async function POST(request: NextRequest) {
 
     console.log('🤖 Using OpenAI API for response')
     console.log('🔑 API Key configured: Yes (length:', aiConfig.apiKey.length, ')')
+
+    // Get current Stuttgart date/time for temporal context
+    const currentDateTime = getStuttgartDateTime()
 
     // Get current context (this would normally come from database/session)
     const context: SmartChargingContext = {
@@ -143,7 +176,7 @@ export async function POST(request: NextRequest) {
         const { current, solarOptimization } = weatherData
         const bestWindow = solarOptimization.bestChargingWindow
         const windowText = bestWindow 
-          ? `${new Date(bestWindow.start).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })} - ${new Date(bestWindow.end).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}`
+          ? `${new Date(bestWindow.start).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(bestWindow.end).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false })}`
           : 'No optimal solar window found'
 
         weatherContext = `Current weather context:
@@ -159,6 +192,17 @@ export async function POST(request: NextRequest) {
       console.error('Weather data error:', error)
     }
 
+    // Create temporal context for the AI
+    const temporalContext = `CURRENT DATE & TIME CONTEXT:
+- Current Date: ${currentDateTime.date} (${currentDateTime.dayOfWeek})
+- Current Time: ${currentDateTime.time} ${currentDateTime.timezone}
+- Location: Stuttgart, Germany
+
+IMPORTANT: Use this current time information to provide contextually accurate recommendations. 
+- Solar charging is only possible during daylight hours (roughly 06:00-20:00)
+- Off-peak electricity rates typically apply from 23:00-07:00
+- Consider if it's currently morning, afternoon, evening, or night when making suggestions`
+
     // Call OpenAI API
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -170,6 +214,7 @@ export async function POST(request: NextRequest) {
         model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: temporalContext },
           { role: 'system', content: `Current vehicle context: ${JSON.stringify(context)}` },
           { role: 'system', content: weatherContext },
           ...history,

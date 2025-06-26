@@ -23,13 +23,37 @@ export function useVoiceChat() {
 
   // Toggle voice mode
   const toggleVoiceMode = useCallback(() => {
-    setVoiceState(prev => ({ 
-      ...prev, 
-      isVoiceMode: !prev.isVoiceMode,
-      error: null 
-    }))
-    console.log('🎤 Voice mode toggled:', !voiceState.isVoiceMode ? 'ON' : 'OFF')
-  }, [voiceState.isVoiceMode])
+    const newVoiceMode = !voiceState.isVoiceMode
+    
+    // If we're turning off voice mode, interrupt any playing audio
+    if (!newVoiceMode && (voiceState.isPlaying || voiceState.isProcessing)) {
+      console.log('🔇 Voice mode OFF - Stopping current audio')
+      
+      // Stop current audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause()
+        currentAudioRef.current = null
+      }
+      
+      // Reset audio states
+      setVoiceState(prev => ({ 
+        ...prev, 
+        isVoiceMode: newVoiceMode,
+        isPlaying: false,
+        isProcessing: false,
+        error: null 
+      }))
+    } else {
+      // Normal state change
+      setVoiceState(prev => ({ 
+        ...prev, 
+        isVoiceMode: newVoiceMode,
+        error: null 
+      }))
+    }
+    
+    console.log('🎤 Voice mode toggled:', newVoiceMode ? 'ON' : 'OFF')
+  }, [voiceState.isVoiceMode, voiceState.isPlaying, voiceState.isProcessing])
 
   // Convert text to speech and play automatically
   const speakText = useCallback(async (text: string): Promise<void> => {
@@ -60,8 +84,13 @@ export function useVoiceChat() {
 
       const { audioData } = await ttsResponse.json()
       
-      // Play the audio
-      await playAudio(audioData)
+      // Check if voice mode is still active before playing
+      // (user may have turned it off during conversion)
+      if (voiceState.isVoiceMode) {
+        await playAudio(audioData)
+      } else {
+        console.log('🔇 Voice mode disabled during TTS - skipping audio playback')
+      }
       
       setVoiceState(prev => ({ ...prev, isProcessing: false }))
       
@@ -73,7 +102,7 @@ export function useVoiceChat() {
         isProcessing: false 
       }))
     }
-  }, [voiceState.isProcessing, voiceState.isPlaying])
+  }, [voiceState.isProcessing, voiceState.isPlaying, voiceState.isVoiceMode])
 
   // Start recording audio
   const startRecording = useCallback(async () => {

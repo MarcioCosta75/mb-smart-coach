@@ -169,7 +169,7 @@ class SmartCoachAPI {
     const { current, solarOptimization } = this.context.weather
     const bestWindow = solarOptimization.bestChargingWindow
     const windowText = bestWindow 
-      ? `${new Date(bestWindow.start).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })} - ${new Date(bestWindow.end).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+      ? `${new Date(bestWindow.start).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false })} - ${new Date(bestWindow.end).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit', hour12: false })}`
       : 'No optimal solar window found'
 
     return `Current weather context for Stuttgart:
