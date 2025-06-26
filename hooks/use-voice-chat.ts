@@ -5,6 +5,7 @@ export interface VoiceState {
   isProcessing: boolean
   isPlaying: boolean
   error: string | null
+  isVoiceMode: boolean
 }
 
 export function useVoiceChat() {
@@ -12,16 +13,74 @@ export function useVoiceChat() {
     isRecording: false,
     isProcessing: false,
     isPlaying: false,
-    error: null
+    error: null,
+    isVoiceMode: false
   })
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const currentAudioRef = useRef<HTMLAudioElement | null>(null)
 
+  // Toggle voice mode
+  const toggleVoiceMode = useCallback(() => {
+    setVoiceState(prev => ({ 
+      ...prev, 
+      isVoiceMode: !prev.isVoiceMode,
+      error: null 
+    }))
+    console.log('🎤 Voice mode toggled:', !voiceState.isVoiceMode ? 'ON' : 'OFF')
+  }, [voiceState.isVoiceMode])
+
+  // Convert text to speech and play automatically
+  const speakText = useCallback(async (text: string): Promise<void> => {
+    try {
+      // Evitar múltiplas conversões simultâneas
+      if (voiceState.isProcessing || voiceState.isPlaying) {
+        console.log('⏸️ Skipping TTS - already processing or playing audio')
+        return
+      }
+
+      console.log('🗣️ Converting text to speech:', text.substring(0, 50) + '...')
+      setVoiceState(prev => ({ ...prev, isProcessing: true }))
+
+      const ttsResponse = await fetch('/api/voice', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'speak',
+          text: text
+        })
+      })
+
+      if (!ttsResponse.ok) {
+        throw new Error('Text-to-speech failed')
+      }
+
+      const { audioData } = await ttsResponse.json()
+      
+      // Play the audio
+      await playAudio(audioData)
+      
+      setVoiceState(prev => ({ ...prev, isProcessing: false }))
+      
+    } catch (error) {
+      console.error('TTS Error:', error)
+      setVoiceState(prev => ({ 
+        ...prev, 
+        error: `Text-to-speech failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        isProcessing: false 
+      }))
+    }
+  }, [voiceState.isProcessing, voiceState.isPlaying])
+
   // Start recording audio
   const startRecording = useCallback(async () => {
     try {
+      // Ativar modo de voz quando começar a gravar
+      setVoiceState(prev => ({ ...prev, isVoiceMode: true }))
+
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
           channelCount: 1,
@@ -46,7 +105,7 @@ export function useVoiceChat() {
       mediaRecorder.start()
       setVoiceState(prev => ({ ...prev, isRecording: true, error: null }))
 
-      console.log('🎤 Recording started')
+      console.log('🎤 Recording started - Voice mode activated')
 
     } catch (error) {
       console.error('Failed to start recording:', error)
@@ -225,7 +284,8 @@ export function useVoiceChat() {
       isRecording: false,
       isProcessing: false,
       isPlaying: false,
-      error: null
+      error: null,
+      isVoiceMode: false
     })
   }, [voiceState.isRecording])
 
@@ -240,6 +300,8 @@ export function useVoiceChat() {
     stopRecording,
     playAudio,
     stopAll,
-    clearError
+    clearError,
+    toggleVoiceMode,
+    speakText
   }
 } 

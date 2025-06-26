@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { MessageCircle } from "lucide-react"
+import { MessageCircle, Volume2, VolumeX } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { CustomIcon } from "@/components/custom-icon"
@@ -11,20 +11,24 @@ interface ChatInputProps {
   message: string
   isTyping: boolean
   isRecording: boolean
+  isVoiceMode: boolean
   onMessageChange: (value: string) => void
   onSend: () => void
   onKeyPress: (e: React.KeyboardEvent) => void
   onVoiceClick: () => void
+  onToggleVoiceMode: () => void
 }
 
 export function ChatInput({
   message,
   isTyping,
   isRecording,
+  isVoiceMode,
   onMessageChange,
   onSend,
   onKeyPress,
-  onVoiceClick
+  onVoiceClick,
+  onToggleVoiceMode
 }: ChatInputProps) {
   return (
     <div className="p-4">
@@ -40,9 +44,30 @@ export function ChatInput({
               onClick={onVoiceClick}
             />
 
+            {/* Modo de Voz Toggle */}
+            <Button
+              onClick={onToggleVoiceMode}
+              variant="ghost"
+              size="sm"
+              className={`p-2 h-8 w-8 transition-all duration-200 ${
+                isVoiceMode 
+                  ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              }`}
+              title={isVoiceMode ? "Voice mode ON - Responses will be spoken" : "Voice mode OFF - Text only"}
+            >
+              {isVoiceMode ? (
+                <Volume2 className="w-4 h-4" />
+              ) : (
+                <VolumeX className="w-4 h-4" />
+              )}
+            </Button>
+
             <div className="flex-1 flex justify-end">
-              <span className="text-xs text-gray-400 font-medium">
-                Start conversation
+              <span className={`text-xs font-medium transition-all duration-200 ${
+                isVoiceMode ? 'text-blue-600' : 'text-gray-400'
+              }`}>
+                {isVoiceMode ? 'Voice mode ON' : 'Start conversation'}
               </span>
             </div>
           </div>

@@ -24,7 +24,7 @@ export default function SmartCoachPage() {
   const [showClearModal, setShowClearModal] = useState(false)
 
   // Hooks
-  const { voiceState, startRecording, stopRecording, stopAll, clearError } = useVoiceChat()
+  const { voiceState, startRecording, stopRecording, stopAll, clearError, toggleVoiceMode, speakText } = useVoiceChat()
   const { messages, isLoaded, addMessage, clearMessages, getChatHistory } = usePersistentChat()
 
   // Suprimir avisos de desenvolvimento
@@ -45,6 +45,49 @@ export default function SmartCoachPage() {
       console.log('✅ Conversation restored with', messages.length, 'messages')
     }
   }, [isLoaded, messages.length])
+
+  // Send welcome message for first-time users (when there are 0 messages)
+  useEffect(() => {
+    if (isLoaded && messages.length === 0) {
+      const sendWelcomeMessage = async () => {
+        console.log('👋 Sending welcome message for first-time user')
+        
+        const welcomeMessage: Message = {
+          id: `bot-welcome-${Date.now()}`,
+          type: 'bot',
+          content: `Good morning, Ella! 🌅
+
+Your EQS is at **74% charge** with **504km range**. Perfect for your home office day and any last-minute meetings that might pop up.
+
+I'm your Smart Coach, here to optimize your charging with your solar panels and Mercedes wallbox. I'll help you:
+
+- ☀️ **Maximize solar charging** when Stuttgart's sun is shining
+- 💰 **Save on energy costs** with smart off-peak scheduling  
+- ⚡ **Never worry about range** - I'll alert you before any trips
+- 📅 **Adapt to your plans** - just like your flexible work style
+
+What can I help you with today?`,
+          timestamp: new Date()
+        }
+        
+        addMessage(welcomeMessage)
+
+        // Se estiver no modo de voz, reproduzir a mensagem de boas-vindas
+        if (voiceState.isVoiceMode) {
+          try {
+            console.log('🗣️ Speaking welcome message in voice mode')
+            await speakText(welcomeMessage.content)
+          } catch (error) {
+            console.error('❌ Error speaking welcome message:', error)
+          }
+        }
+      }
+      
+      // Add a small delay to make it feel natural
+      const timer = setTimeout(sendWelcomeMessage, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoaded, messages.length, addMessage, voiceState.isVoiceMode, speakText])
 
   // Detectar se o usuário está próximo do final do scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
@@ -197,6 +240,17 @@ export default function SmartCoachPage() {
       }
 
       addMessage(botMessage)
+
+      // 🔊 NOVA FUNCIONALIDADE: Se estiver no modo de voz, reproduzir a resposta automaticamente
+      if (voiceState.isVoiceMode && !voiceState.isPlaying) {
+        try {
+          console.log('🗣️ Auto-speaking response in voice mode')
+          await speakText(botMessage.content)
+        } catch (error) {
+          console.error('❌ Error auto-speaking response:', error)
+        }
+      }
+
     } catch (error) {
       console.error('❌ Chat API Error:', error)
       
@@ -208,6 +262,15 @@ export default function SmartCoachPage() {
         timestamp: new Date()
       }
       addMessage(errorMessage)
+
+      // Reproduzir mensagem de erro em modo de voz também
+      if (voiceState.isVoiceMode && !voiceState.isPlaying) {
+        try {
+          await speakText(errorMessage.content)
+        } catch (speakError) {
+          console.error('❌ Error speaking error message:', speakError)
+        }
+      }
     } finally {
       setIsTyping(false)
     }
@@ -243,7 +306,12 @@ export default function SmartCoachPage() {
 
   return (
     <div className="fixed inset-0 bg-gradient-to-b from-slate-700 to-slate-900 z-50 flex flex-col overflow-hidden">
-      <SmartCoachHeader onBack={handleBack} onClearChat={handleClearChat} />
+      <SmartCoachHeader 
+        onBack={handleBack} 
+        onClearChat={handleClearChat}
+        isVoiceMode={voiceState.isVoiceMode}
+        isProcessing={voiceState.isProcessing || voiceState.isPlaying}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
@@ -282,10 +350,12 @@ export default function SmartCoachPage() {
           message={message}
           isTyping={isTyping}
           isRecording={voiceState.isRecording}
+          isVoiceMode={voiceState.isVoiceMode}
           onMessageChange={setMessage}
           onSend={handleSend}
           onKeyPress={handleKeyPress}
           onVoiceClick={handleVoiceClick}
+          onToggleVoiceMode={toggleVoiceMode}
         />
       </div>
 
