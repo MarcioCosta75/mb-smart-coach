@@ -12,7 +12,7 @@ export default function HomePage() {
   const router = useRouter()
   const [vehicleUnlocked, setVehicleUnlocked] = useState(true)
 
-  // Suprimir avisos de desenvolvimento
+  // Suppress development warnings
   useEffect(() => {
     suppressDevWarnings()
   }, [])

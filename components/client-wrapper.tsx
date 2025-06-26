@@ -10,7 +10,7 @@ interface ClientWrapperProps {
 
 export function ClientWrapper({ children, className = "" }: ClientWrapperProps) {
   useEffect(() => {
-    // Suprimir avisos de desenvolvimento específicos do React DevTools
+    // Suppress specific React DevTools development warnings
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       const originalWarn = console.warn
       console.warn = (...args) => {

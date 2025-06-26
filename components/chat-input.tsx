@@ -33,9 +33,9 @@ export function ChatInput({
   return (
     <div className="p-4">
       <div className="w-full bg-white rounded-2xl p-4 shadow-xl border border-gray-200">
-        {/* Linha única com input e controles */}
+        {/* Single line with input and controls */}
         <div className="flex items-center gap-3">
-          {/* Input principal */}
+          {/* Main input */}
           <Input
             value={message}
             onChange={(e) => onMessageChange(e.target.value)}
@@ -45,9 +45,9 @@ export function ChatInput({
             disabled={isTyping}
           />
 
-          {/* Controles compactos à direita */}
+          {/* Compact controls on the right */}
           <div className="flex items-center gap-2">
-            {/* Toggle modo de voz - compacto */}
+            {/* Toggle voice mode - compact */}
             <Button
               onClick={onToggleVoiceMode}
               variant="ghost"
@@ -66,14 +66,14 @@ export function ChatInput({
               )}
             </Button>
 
-            {/* Botão de voz - compacto */}
+            {/* Voice button - compact */}
             <VoiceButton
               isRecording={isRecording}
               isDisabled={isTyping}
               onClick={onVoiceClick}
             />
 
-            {/* Botão enviar */}
+            {/* Send button */}
             <Button
               onClick={onSend}
               disabled={!message.trim() || isTyping}

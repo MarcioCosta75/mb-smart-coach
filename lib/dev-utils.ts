@@ -2,12 +2,12 @@
 
 export function suppressDevWarnings() {
   if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    // Suprimir aviso específico do React DevTools
+    // Suppress specific React DevTools warnings
     const originalWarn = console.warn
     console.warn = (...args) => {
       const message = args[0]
       if (typeof message === 'string') {
-        // Lista de avisos que queremos suprimir
+        // List of warnings we want to suppress
         const suppressedWarnings = [
           'Download the React DevTools',
           'Skipping auto-scroll behavior due to',
@@ -28,7 +28,7 @@ export function suppressDevWarnings() {
   }
 }
 
-// Função para otimizar componentes de imagem
+// Function to optimize image components
 export function getImageProps(name: string) {
   const isHighPriority = ['mercedes-star', 'car-image', 'messages'].includes(name)
   

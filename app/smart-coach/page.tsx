@@ -27,19 +27,19 @@ export default function SmartCoachPage() {
   const { voiceState, startRecording, stopRecording, stopAll, clearError, toggleVoiceMode, speakText } = useVoiceChat()
   const { messages, isLoaded, addMessage, clearMessages, getChatHistory } = usePersistentChat()
 
-  // Suprimir avisos de desenvolvimento
+  // Suppress development warnings
   useEffect(() => {
     suppressDevWarnings()
   }, [])
 
-  // Auto-scroll inteligente - só quando o usuário está próximo do final
+  // Smart auto-scroll - only when the user is near the bottom
   useEffect(() => {
     if (isNearBottom && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages, isTyping, isNearBottom])
 
-  // Mostrar notificação quando mensagens são carregadas
+  // Show notification when messages are loaded
   useEffect(() => {
     if (isLoaded && messages.length > 0) {
       console.log('✅ Conversation restored with', messages.length, 'messages')
@@ -72,13 +72,13 @@ What can I help you with today?`,
         
         addMessage(welcomeMessage)
 
-        // 🔊 SEMPRE reproduzir a mensagem de boas-vindas em áudio para novos usuários
+        // 🔊 ALWAYS play the welcome message in audio for new users
         try {
           console.log('🗣️ Speaking welcome message for first-time user')
           await speakText(welcomeMessage.content)
         } catch (error) {
           console.error('❌ Error speaking welcome message:', error)
-          // Falha silenciosa - não bloqueia a experiência se houver erro de áudio
+          // Silent failure - doesn't block the experience if there's an audio error
         }
       }
       
@@ -88,10 +88,10 @@ What can I help you with today?`,
     }
   }, [isLoaded, messages.length, addMessage, speakText])
 
-  // Detectar se o usuário está próximo do final do scroll
+  // Detect if the user is near the bottom of the scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const { scrollTop, scrollHeight, clientHeight } = e.currentTarget
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100 // 100px de threshold
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 100 // 100px threshold
     setIsNearBottom(isAtBottom)
   }
 
@@ -240,7 +240,7 @@ What can I help you with today?`,
 
       addMessage(botMessage)
 
-      // 🔊 NOVA FUNCIONALIDADE: Se estiver no modo de voz, reproduzir a resposta automaticamente
+      // 🔊 NEW FEATURE: If in voice mode, automatically play the response
       if (voiceState.isVoiceMode && !voiceState.isPlaying) {
         try {
           console.log('🗣️ Auto-speaking response in voice mode')
@@ -262,7 +262,7 @@ What can I help you with today?`,
       }
       addMessage(errorMessage)
 
-      // Reproduzir mensagem de erro em modo de voz também
+      // Also play error message in voice mode
       if (voiceState.isVoiceMode && !voiceState.isPlaying) {
         try {
           await speakText(errorMessage.content)

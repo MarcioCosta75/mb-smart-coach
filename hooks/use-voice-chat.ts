@@ -34,7 +34,7 @@ export function useVoiceChat() {
   // Convert text to speech and play automatically
   const speakText = useCallback(async (text: string): Promise<void> => {
     try {
-      // Evitar múltiplas conversões simultâneas
+      // Avoid multiple simultaneous conversions
       if (voiceState.isProcessing || voiceState.isPlaying) {
         console.log('⏸️ Skipping TTS - already processing or playing audio')
         return
@@ -78,7 +78,7 @@ export function useVoiceChat() {
   // Start recording audio
   const startRecording = useCallback(async () => {
     try {
-      // Ativar modo de voz quando começar a gravar
+      // Activate voice mode when starting to record
       setVoiceState(prev => ({ ...prev, isVoiceMode: true }))
 
       const stream = await navigator.mediaDevices.getUserMedia({ 
