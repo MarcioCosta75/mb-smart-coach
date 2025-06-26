@@ -29,15 +29,15 @@ export function SmartCoachHeader({ onBack, onClearChat, isVoiceMode, isProcessin
         </div>
         <div className="text-center">
           <div className="text-lg font-semibold">SMART COACH</div>
-          <div className="text-xs text-gray-300 flex items-center gap-2">
+          <div className="text-xs text-gray-300 flex items-center justify-center gap-2">
             <span>Intelligent Charging Assistant</span>
             {isVoiceMode && (
-              <span className="flex items-center gap-1 text-blue-400">
+              <div className="flex items-center gap-1 text-blue-400">
                 <Volume2 className="w-3 h-3" />
-                <span className={`${isProcessing ? 'animate-pulse' : ''}`}>
-                  {isProcessing ? 'Speaking...' : 'Voice Mode'}
+                <span className={`text-xs ${isProcessing ? 'animate-pulse' : ''}`}>
+                  {isProcessing ? 'Speaking' : 'Voice'}
                 </span>
-              </span>
+              </div>
             )}
           </div>
         </div>

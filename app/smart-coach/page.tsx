@@ -72,14 +72,13 @@ What can I help you with today?`,
         
         addMessage(welcomeMessage)
 
-        // Se estiver no modo de voz, reproduzir a mensagem de boas-vindas
-        if (voiceState.isVoiceMode) {
-          try {
-            console.log('🗣️ Speaking welcome message in voice mode')
-            await speakText(welcomeMessage.content)
-          } catch (error) {
-            console.error('❌ Error speaking welcome message:', error)
-          }
+        // 🔊 SEMPRE reproduzir a mensagem de boas-vindas em áudio para novos usuários
+        try {
+          console.log('🗣️ Speaking welcome message for first-time user')
+          await speakText(welcomeMessage.content)
+        } catch (error) {
+          console.error('❌ Error speaking welcome message:', error)
+          // Falha silenciosa - não bloqueia a experiência se houver erro de áudio
         }
       }
       
@@ -87,7 +86,7 @@ What can I help you with today?`,
       const timer = setTimeout(sendWelcomeMessage, 1000)
       return () => clearTimeout(timer)
     }
-  }, [isLoaded, messages.length, addMessage, voiceState.isVoiceMode, speakText])
+  }, [isLoaded, messages.length, addMessage, speakText])
 
   // Detectar se o usuário está próximo do final do scroll
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
